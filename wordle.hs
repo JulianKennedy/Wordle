@@ -48,7 +48,7 @@ getByIndex (h:t) index = getByIndex t (index - 1)
 getLineFixed =
    do
      line <- getLine
-     return (fixdel2 line)
+     return (fmap toLower (fixdel2 line))
 
 -- Grab the guess from the user input and check that it is in the list of valid words
 getGuess :: [String] -> IO String
@@ -128,7 +128,87 @@ displayFeedback guess target = do
     let initialResult = applyColorsGreedy guess target
     let filteredResult = removeYellowIfNecessary guess target initialResult
     putStrLn filteredResult
-  
+
+
+
+
+
+-----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
+------------------------------ SOLVE MODE -----------------------------------
+-----------------------------------------------------------------------------
+-----------------------------------------------------------------------------  
+
+filterForContains :: [String] -> Char -> Int -> [String]
+filterForContains low char index = [word | word <- low, char `elem` word && (word !! index) /= char]
+
+filterForNotContains :: [String] -> Char -> [String]
+filterForNotContains low char = [word | word <- low, char `notElem` word]
+
+filterForPosition :: [String] -> Char -> Int -> [String]
+filterForPosition low char index = [word | word <- low, (word !! index) == char]
+
+filterFor :: [String] -> String -> String -> Int -> [String]
+filterFor low word result index = 
+    if (result !! index) == '⬜' then filterForNotContains low (word !! index)
+    else if result !! index == '🟨' then filterForContains low (word !! index) index
+    else filterForPosition low (word !! index) index
+
+filterr :: [String] -> String -> String -> [String]
+filterr low word result = foldl (\acc i -> filterFor acc word result i) low [0..4]
+
+-- Parameters: possibleWords, words, results
+-- Returns: all words that fit words and their respective results
+getValidWords :: [String] -> [String] -> [String] -> [String]
+getValidWords low words results = foldl (\acc i -> filterr acc (words !! i) (results !! i)) low [0..((length words) - 1)]
+
+-- calculateEntropyHelper iterates over all the partitions of a word and calculates the entropy of the word
+-- Parameters word guesses results possibleWords partitions validWordsSize runningTotal
+calculateEntropyHelper :: String -> [String] -> [String] -> [String] -> [String] -> Double -> Double -> Double
+calculateEntropyHelper _ _ _ _ [] _ runningTotal = runningTotal
+calculateEntropyHelper word guesses results possibleWords (h:t) validWordsSize runningTotal =
+    let validWordCount = fromIntegral (length (getValidWords possibleWords (guesses ++ [word]) (results ++ [h])))
+        p = validWordCount / validWordsSize
+        entropy = if p > 0.0 then p * (logBase 2 (1.0/p)) else 0.0
+    in calculateEntropyHelper word guesses results possibleWords t validWordsSize (runningTotal + entropy)
+
+-- calculateEntropy finds the entropy for each possible word
+-- Parameters word guesses results
+calculateEntropy :: String -> [String] -> [String] -> [String] -> Double
+calculateEntropy word guesses results possibleWords =
+    let partitionList = generateResultComb 0 [""]
+        denominator = fromIntegral (length (getValidWords possibleWords guesses results))
+    in calculateEntropyHelper word guesses results possibleWords partitionList denominator 0
+
+-- generateResultComb creates the 243 different possibilities of colored square combinations
+-- Parameters size currentResults
+generateResultComb :: Int -> [String] -> [String]
+generateResultComb 5 currentResults = currentResults
+generateResultComb size currentResults = 
+    let addWhite = [res ++ "⬜" | res <- currentResults]
+        addYellow = [res ++ "🟨" | res <- currentResults]
+        addGreen = [res ++ "🟩" | res <- currentResults] 
+    in generateResultComb (size+1) (addWhite ++ addGreen ++ addYellow)
+
+--printAndReturn :: [String] -> IO [String]
+--printAndReturn xs = do
+--    mapM_ putStrLn xs  -- Print each string using putStrLn
+--    return xs
+
+-- getWordWithHighestEntropy finds the word, value pair with the highest entropy from a list of words
+-- Parameters: values, words
+getWordWithHighestEntropy :: [String] -> [Double] -> (String, Double)
+getWordWithHighestEntropy words values = foldl (\acc i -> if (values !! i) > (snd acc) then ((words !! i), (values !! i)) else acc) ("aaaaa", 0) [0..((length values) - 1)]
+
+generateBestWord :: [String] -> [String] -> [String] -> (String, Double)
+generateBestWord low guesses results =
+    if (length (getValidWords low guesses results)) <= 2 then 
+        let chosenWord = (getValidWords low guesses results) !! 0
+            chosenWordEntropy = calculateEntropy chosenWord guesses results low 
+        in (chosenWord, chosenWordEntropy)
+    else 
+        let entropyValues = [calculateEntropy word guesses results low | word <- low]
+        in (getWordWithHighestEntropy low entropyValues)
 
 -- Play
 -- Parameters targetWord numGuesses allowedWords
@@ -153,5 +233,5 @@ main = do
     possibleWords <- readWords "data/possible_words.txt"
     allowedWords <- readWords "data/allowed_words.txt"
     targetWord <- getTargetWord possibleWords
-    putStrLn "Target word selected. Start guessing"
+    putStrLn "Target word selected. Start guessing" 
     play targetWord 1 allowedWords
