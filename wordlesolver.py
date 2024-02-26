@@ -1,12 +1,15 @@
-list_of_possible_words = []
+import json
 
-with open('data/possible_words.txt', 'r') as file:
-    for line in file:
-        list_of_possible_words.append(line.strip())
+# Step 1: Load the JSON file
+with open('data/freq_map.json', 'r') as file:
+    data = json.load(file)
 
-contains = "rae"
-not_contains = "plutocnes"
+# Step 2: Sort the words by their frequency in descending order
+sorted_words = sorted(data.items(), key=lambda x: x[1], reverse=True)
 
-for word in list_of_possible_words:
-    if all([char in word for char in contains]) and all([char not in word for char in not_contains]):
-        print(word)
+# Step 3: Take the top 400 words
+top_300_words = sorted([word for word, freq in sorted_words[:300]])
+
+# Step 4: Write these words into a .txt file, separated by spaces
+with open('data/top_300_words.txt', 'w') as file:
+    file.write('\n'.join(top_300_words))
