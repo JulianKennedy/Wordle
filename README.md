@@ -1,16 +1,8 @@
 # WORDLE
 
-# STEPS
+A description of our game is available on [the Wiki](https://wiki.ubc.ca/Course:CPSC312-2024-wordle)
 
-- Calculate entropy
-- Add word weights
-- Possibly only use wordle word list
+### Error Fixing
 
-- Split the word into all GYWs
-- Find all possible words that exist for each GYW and the true GYW or previous guesses
-- Determine the weighting of the word based on the sum of all possible words from all GYWs
-  - The highest weighting has the fewest possible words
-
-Ideas
-
-- Some kind of veritifcaton in solver to ensure result is all the proper boxes
+- Problem: Could not load module 'System.TimeIt'
+- Fix: :set -package timeit
