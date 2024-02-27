@@ -70,10 +70,10 @@ getLineFixed =
 -- Returns: IO String of valid user word guess
 getGuess :: [String] -> IO String
 getGuess allowedWords = do
-    putStrLn "Enter your guess:"
+    putStrLn "Enter your next word: "
     guess <- getLineFixed
     if guess `notElem` allowedWords then do
-        putStrLn "Word not allowed, try again."
+        putStrLn "Word is not valid, please enter a valid five letter word."
         getGuess allowedWords
     else
         return guess
@@ -165,15 +165,14 @@ displayFeedback guess target = do
 play :: String -> Int -> [String] -> IO ()
 play targetWord numGuesses allowedWords =
     if numGuesses == 7 then do 
-        putStrLn ("You are out of guesses. The correct word is " ++ targetWord)
+        putStrLn ("You are out of guesses. The correct word is " ++ targetWord ++ ".")
     else do
         let guess = getGuess allowedWords
         guessAsString <- guess
         let isTargetWord = guessAsString == targetWord
         if isTargetWord then do
             putStrLn "🟩🟩🟩🟩🟩"
-            putStrLn ("You guessed the word in " ++ (show numGuesses) ++ " guesses")
-            putStrLn "CONGRATS MATE"
+            putStrLn ("Congratulations! You guessed the word in " ++ (show numGuesses) ++ " guesses")
         else do
             displayFeedback guessAsString targetWord
             play targetWord (numGuesses + 1) allowedWords
@@ -289,10 +288,10 @@ generateBestWord low guesses results =
 -- Returns: A valid result in the form of 5 characters (each one of "🟩🟨⬜")
 getResult :: IO String
 getResult = do
-    putStrLn "Enter result: "
+    putStrLn "Enter the result using 🟩🟨⬜: "
     result <- getLineFixed
     if result `notElem` (generateResultComb 0 [""]) then do
-        putStrLn "Result not allowed, try again."
+        putStrLn "Result not allowed, must be five characters long, each being one of 🟩🟨⬜."
         getResult
     else
         return result
@@ -303,30 +302,33 @@ getResult = do
 solve :: [String] -> [String] -> [String] -> IO ()
 solve possibleWords guesses results = do
     newResult <- getResult
-    if newResult == "🟩🟩🟩🟩🟩" then do putStrLn "SOLVED!!!"
+    if newResult == "🟩🟩🟩🟩🟩" then do putStrLn "Eureka! You've cracked the code!"
     else do
         let numberOfPossibleWords = length (getValidWords possibleWords guesses (results ++ [newResult]))
-        let (word, entropy) = generateBestWord possibleWords guesses (results ++ [newResult])
-        putStrLn ("There are now " ++ (show numberOfPossibleWords) ++ " possible words left")
-        putStrLn ("Your next word: " ++ word ++ " with a score of " ++ (show entropy) ++ " bits")
-        solve possibleWords (guesses ++ [word]) (results ++ [newResult])
+        if numberOfPossibleWords == 0 then do
+            putStrLn "There are no more possible words that match your previous guesses and results."
+        else do 
+            let (word, entropy) = generateBestWord possibleWords guesses (results ++ [newResult])
+            putStrLn ("There are now " ++ (show numberOfPossibleWords) ++ " possible words left")
+            putStrLn ("Your next word is \"" ++ word ++ "\" with a score of " ++ (show entropy) ++ " bits")
+            solve possibleWords (guesses ++ [word]) (results ++ [newResult])
 
 
 main :: IO ()
 main = do
     possibleWords <- readWords "data/top_400_words.txt"
     allowedWords <- readWords "data/allowed_words.txt"
-    putStrLn "Enter a mode: either play or solve"
+    putStrLn "Mode selection time! Choose 'play' or 'solve'."
     mode <- getLineFixed
 
     if mode == "play" then do 
         targetWord <- getTargetWord possibleWords   
-        putStrLn "Target word selected. Start guessing" 
+        putStrLn "A target word has been chosen. Let the guessing begin!" 
         play targetWord 1 allowedWords
 
     else if mode == "solve" then do 
-        putStrLn "Welcome to solve mode, use the following squares to enter the results ⬜🟨🟩"
-        putStrLn "Start with the word crane"
+        putStrLn "Welcome to solve mode. Please use the following squares to enter the results ⬜🟨🟩."
+        putStrLn "Start with the word 'crane' and report back with the results."
         solve possibleWords ["crane"] []
 
     else if mode == "test" then do
